@@ -4,62 +4,81 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nimiq Hub Integration</title>
-    <!-- Include the Nimiq Hub library -->
-    <script src="https://hub.nimiq.com/lib/v2.0.0/hub.js"></script>
+    <!-- Include the Hub API from the CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@nimiq/hub-api@v1.2.3/dist/standalone/HubApi.standalone.umd.js" integrity="sha256-5X6zryCUAPOnfjLU8tEtJrLdcslA2UI27RsUWnLAxHs=" crossorigin="anonymous"></script>
 </head>
 <body>
 
-<button onclick="createAccount()">Create Account</button>
-<button onclick="sendNim()">Send NIM</button>
-<button onclick="receiveNim()">Receive NIM</button>
+Your address: <span id="output">-</span>
+<button id="choose-address">Choose Address</button>
+<button id="create-account">Create Account</button>
+<button id="send-nim">Send NIM</button>
+<button id="receive-nim">Receive NIM</button>
 
 <script>
-    // Initialize the Nimiq Hub
-    const hub = new HubApi('https://hub.nimiq.com');
+    // Initialize the Hub API for the testnet (for mainnet use 'https://hub.nimiq.com')
+    const hubApi = new HubApi('https://hub.nimiq-testnet.com');
+
+    // Choose an address
+    document.getElementById('choose-address').addEventListener('click', async function(event) {
+        const output = document.getElementById('output');
+
+        try {
+            const result = await hubApi.chooseAddress({ appName: 'Nimiq App' });
+            output.textContent = result.address;
+        } catch (error) {
+            output.textContent = error.message;
+        }
+    });
 
     // Create a new account
-    async function createAccount() {
+    document.getElementById('create-account').addEventListener('click', async function() {
+        const output = document.getElementById('output');
+
         try {
-            const result = await hub.create();
-            console.log('Account created:', result);
+            const result = await hubApi.create();
+            output.textContent = `New Account: ${result.address}`;
         } catch (error) {
-            console.error('Error creating account:', error);
+            output.textContent = error.message;
         }
-    }
+    });
 
     // Send NIM
-    async function sendNim() {
+    document.getElementById('send-nim').addEventListener('click', async function() {
         const recipientAddress = prompt('Enter recipient address:');
         const amount = parseFloat(prompt('Enter amount to send:'));
-        
+
         if (!recipientAddress || isNaN(amount)) {
             alert('Invalid input');
             return;
         }
 
         try {
-            const result = await hub.checkout({
-                appName: 'YourAppName', // Replace with your app's name
+            const result = await hubApi.checkout({
+                appName: 'Nimiq App',
                 recipient: recipientAddress,
                 value: amount * 1e5,  // Convert NIM to Luna
             });
-            console.log('Transaction successful:', result);
+            output.textContent = 'Transaction successful!';
         } catch (error) {
-            console.error('Error sending NIM:', error);
+            output.textContent = error.message;
         }
-    }
+    });
 
     // Receive NIM
-    async function receiveNim() {
+    document.getElementById('receive-nim').addEventListener('click', async function() {
+        const output = document.getElementById('output');
+
         try {
-            const result = await hub.receive({
-                appName: 'YourAppName', // Replace with your app's name
+            const result = await hubApi.receive({
+                appName: 'Nimiq App',
             });
-            console.log('Receive address:', result.address);
+            output.textContent = `Receive address: ${result.address}`;
         } catch (error) {
-            console.error('Error receiving NIM:', error);
+            output.textContent = error.message;
         }
-    }
+    });
+
 </script>
 
 </body>
