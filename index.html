@@ -151,7 +151,7 @@
                         const topTickerForExchange = exchangeToTickersMap[exchangeData.exchange].sort((a, b) => b.converted_volume.usd - a.converted_volume.usd)[0];
     
                         return {
-                            name: exchangeData.exchange,
+                            name: exchangeData.exchange.split(' ')[0],
                             volumePercentage: parseFloat(((exchangeData.volume / totalVolumeUSD) * 100).toFixed(2)),
                             volumeUSD: exchangeData.volume.toFixed(2),
                             priceUSD: parseFloat(topTickerForExchange.converted_last?.usd.toFixed(6)) || 'N/A',
