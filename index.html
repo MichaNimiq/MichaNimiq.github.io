@@ -51,7 +51,7 @@
 </div>
 
 <!-- Volume Distribution by Top 3 Exchanges -->
-<h2 class="text-xl font-bold mb-4">Volume Distribution</h2>
+<h2 class="text-xl font-bold mb-4">Volume Distribution (Top 3 and Rest)</h2>
 <div class="relative pt-1 px-4">
     <div class="flex h-2 mb-4 overflow-hidden text-xs bg-gray-200 rounded relative">
         <div :class="['bg-blue-500', 'bg-green-500', 'bg-red-500', 'bg-gray-400'][index]" :key="exchange.name" :style="{width: exchange.volumePercentage + '%'}" v-for="(exchange, index) in topExchanges"></div>
