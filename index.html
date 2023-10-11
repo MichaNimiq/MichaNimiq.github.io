@@ -50,7 +50,7 @@
 </div>
 
 <!-- Volume Distribution by Top 3 Exchanges -->
-<h2 class="text-xl font-bold mb-4">Volume Distribution (Top3)</h2>
+<h2 class="text-xl font-bold mb-4">Volume Distribution</h2>
 <div class="relative pt-1 px-4">
     <div class="flex h-2 mb-4 overflow-hidden text-xs bg-gray-200 rounded relative">
         <div :class="['bg-blue-500', 'bg-green-500', 'bg-red-500', 'bg-gray-400'][index]" :key="exchange.name" :style="{width: exchange.volumePercentage + '%'}" v-for="(exchange, index) in topExchanges"></div>
@@ -64,8 +64,8 @@
 <div class="text-black text-xs mb-1">Price: ${{ exchange.priceUSD }}</div>
 <div class="text-black text-xs mb-1" v-if="exchange.bidAskSpreadPercentage">Spread: {{ exchange.bidAskSpreadPercentage }}%</div>
 <div class="text-black text-xs mb-1">Liquidity: {{ exchange.liquidity }}</div>
-<div class="text-black text-xs mb-1" v-if="exchange.hasTradingIncentive">Competition: Yes</div>
-<div class="text-black text-xs mb-1" v-else>Competition: No</div>
+<div class="text-black text-xs mb-1" v-if="exchange.hasTradingIncentive">Incentive: Yes</div>
+<div class="text-black text-xs mb-1" v-else>Incentive: No</div>
 </div>
 </div>
 </div>
@@ -110,19 +110,40 @@
         },
         methods: {
             fetchData() {
-                fetch('https://api.coingecko.com/api/v3/coins/nimiq-2')
-                    .then(response => response.json())
-                    .then(data => {
-                        const totalVolumeUSD = data.tickers.reduce((acc, ticker) => acc + (ticker.converted_volume?.usd || 0), 0);
+    fetch('https://api.coingecko.com/api/v3/coins/nimiq-2')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Raw tickers data from API:", data.tickers); // Log raw tickers data
 
-                        // Set the liquidityScore and totalVolume values
-                        this.data = {
-                            liquidityScore: data.liquidity_score || 'N/A',
-                            totalVolume: totalVolumeUSD.toFixed(2)
-                        };
+            const totalVolumeUSD = data.tickers.reduce((acc, ticker) => acc + (ticker.converted_volume?.usd || 0), 0);
 
-                        const top3Tickers = data.tickers.sort((a, b) => (b.converted_volume?.usd || 0) - (a.converted_volume?.usd || 0)).slice(0, 3);
-                        this.topExchanges = top3Tickers.map(ticker => ({
+            // Set the liquidityScore and totalVolume values
+            this.data = {
+                liquidityScore: data.liquidity_score || 'N/A',
+                totalVolume: totalVolumeUSD.toFixed(2)
+            };
+
+            const exchangePriceMap = {};
+            data.tickers.forEach(ticker => {
+                const exchange = ticker.market.name;
+                const price = parseFloat(ticker.converted_last?.usd.toFixed(6)) || 0;
+                const volume = ticker.converted_volume?.usd || 0;
+
+                if (!exchangePriceMap[exchange] || volume > exchangePriceMap[exchange].volume) {
+                    exchangePriceMap[exchange] = { price: price, volume: volume };
+                }
+            });
+
+            const pricesFromHighestVolumePairs = Object.keys(exchangePriceMap).map(exchange => ({
+                exchange: exchange,
+                price: exchangePriceMap[exchange].price
+            }));
+            console.log("Prices from highest volume pairs:", pricesFromHighestVolumePairs); // Log prices
+
+            const top3Tickers = data.tickers.sort((a, b) => (b.converted_volume?.usd || 0) - (a.converted_volume?.usd || 0)).slice(0, 3);
+            console.log("Top 3 tickers by volume:", top3Tickers); // Log top 3 tickers
+
+            this.topExchanges = top3Tickers.map(ticker => ({
                             name: ticker.market.name,
                             volumePercentage: parseFloat((((ticker.converted_volume?.usd || 0) / totalVolumeUSD) * 100).toFixed(2)),
                             volumeUSD: ticker.converted_volume?.usd.toFixed(2) || 'N/A',
@@ -132,24 +153,25 @@
                             hasTradingIncentive: ticker.market.has_trading_incentive
                             
                         }));
+            console.log("Processed top 3 exchanges data:", this.topExchanges); // Log processed top 3 exchanges data
 
-                        const pricesFromAllExchanges = data.tickers.map(ticker => ({
-                            exchange: ticker.market.name,
-                            price: parseFloat(ticker.converted_last?.usd.toFixed(6)) || 0
-                        }));
-                        const maxPriceObj = pricesFromAllExchanges.reduce((a, b) => a.price > b.price ? a : b, pricesFromAllExchanges[0]);
-                        const minPriceObj = pricesFromAllExchanges.reduce((a, b) => a.price < b.price ? a : b, pricesFromAllExchanges[0]);
+            const maxPriceObj = pricesFromHighestVolumePairs.reduce((a, b) => a.price > b.price ? a : b, pricesFromHighestVolumePairs[0]);
+            const minPriceObj = pricesFromHighestVolumePairs.reduce((a, b) => a.price < b.price ? a : b, pricesFromHighestVolumePairs[0]);
 
-                        this.highestPrice = maxPriceObj.price;
-                        this.highestPriceExchange = maxPriceObj.exchange;
-                        this.lowestPrice = minPriceObj.price;
-                        this.lowestPriceExchange = minPriceObj.exchange;
-                        this.arbitragePercentage = ((this.highestPrice - this.lowestPrice) / this.lowestPrice) * 100;
-                        this.loading = false;
-                    });
+            this.highestPrice = maxPriceObj.price;
+            this.highestPriceExchange = maxPriceObj.exchange;
+            this.lowestPrice = minPriceObj.price;
+            this.lowestPriceExchange = minPriceObj.exchange;
+            this.arbitragePercentage = ((this.highestPrice - this.lowestPrice) / this.lowestPrice) * 100;
+            console.log("Highest price:", this.highestPrice, "from", this.highestPriceExchange); // Log highest price and exchange
+            console.log("Lowest price:", this.lowestPrice, "from", this.lowestPriceExchange); // Log lowest price and exchange
+
+            this.loading = false;
+        });
+}                    
             }
         }
-    });
+    );
     app.mount('#app');
 </script>
 
