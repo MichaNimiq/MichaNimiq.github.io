@@ -62,10 +62,10 @@
 <div class="text-sm font-bold mb-1">{{ exchange.name }} ({{ exchange.volumePercentage }}%)</div>
 <div class="text-black text-xs mb-1">Vol: ${{ exchange.volumeUSD }}</div>
 <div class="text-black text-xs mb-1">Price: ${{ exchange.priceUSD }}</div>
-<div class="text-black text-xs" v-if="exchange.bidAskSpreadPercentage">Spread: {{ exchange.bidAskSpreadPercentage }}%</div>
-<div class="text-black text-xs">Liquidity: {{ exchange.liquidity }}</div>
-<div class="text-black text-xs mb-1" v-if="exchange.hasTradingIncentive">Trading Incentive: Yes</div>
-<div class="text-black text-xs mb-1" v-else>Trading Incentive: No</div>
+<div class="text-black text-xs mb-1" v-if="exchange.bidAskSpreadPercentage">Spread: {{ exchange.bidAskSpreadPercentage }}%</div>
+<div class="text-black text-xs mb-1">Liquidity: {{ exchange.liquidity }}</div>
+<div class="text-black text-xs mb-1" v-if="exchange.hasTradingIncentive">Incentive: Yes</div>
+<div class="text-black text-xs mb-1" v-else>Incentive: No</div>
 </div>
 </div>
 </div>
