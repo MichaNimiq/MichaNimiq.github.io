@@ -1,85 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nimiq Hub Integration</title>
-    <!-- Include the Hub API from the CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@nimiq/hub-api@v1.2.3/dist/standalone/HubApi.standalone.umd.js" integrity="sha256-5X6zryCUAPOnfjLU8tEtJrLdcslA2UI27RsUWnLAxHs=" crossorigin="anonymous"></script>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nimiq Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" media="print" onload="this.media='all'" rel="stylesheet"/>
+<script src="https://s3.tradingview.com/tv.js"></script><script src="https://unpkg.com/vue@next"></script>
 </head>
-<body>
+<body class="bg-gray-100">
+<!-- Flex Container -->
+<div class="flex flex-col gap-4 p-5 mx-auto mt-10 max-w-3xl">
+<!-- Nimiq Dashboard -->
+<div class="bg-white rounded-xl shadow-md p-6" id="app">
+<h1 class="text-2xl font-bold mb-6">Nimiq Liquidity Dashboard</h1>
+<div class="text-gray-500" v-if="loading">Loading...</div>
+<div v-else="">
+<!-- Average Price -->
+<div class="mb-4">
+    <label class="block text-gray-700 text-sm font-bold mb-2">Average Price (Weighted by Volume):</label>
+    <span class="text-xl">${{ averagePrice.toFixed(6) }}</span>
+</div>
 
-Your address: <span id="output">-</span>
-<button id="choose-address">Choose Address</button>
-<button id="create-account">Create Account</button>
-<button id="send-nim">Send NIM</button>
-<button id="receive-nim">Receive NIM</button>
+<!-- Liquidity Score -->
+<div class="mb-4">
+    <label class="block text-gray-700 text-sm font-bold mb-2">Liquidity Score:</label>
+    <span class="text-xl">{{ data.liquidityScore }}</span>
+</div>
 
+<!-- Total Volume -->
+<div class="mb-4">
+    <label class="block text-gray-700 text-sm font-bold mb-2">Total Volume:</label>
+    <span class="text-xl">${{ data.totalVolume }}</span>
+</div>
+
+<!-- Highest and Lowest Price -->
+<div class="mb-4">
+    <label class="block text-gray-700 text-sm font-bold mb-2">Highest Price:</label>
+    <span class="text-xl">${{ highestPrice.toFixed(6) }} at {{ highestPriceExchange }}</span>
+</div>
+<div class="mb-4">
+    <label class="block text-gray-700 text-sm font-bold mb-2">Lowest Price:</label>
+    <span class="text-xl">${{ lowestPrice.toFixed(6) }} at {{ lowestPriceExchange }}</span>
+</div>
+
+<!-- Arbitrage Opportunity -->
+<div class="mb-4 bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4" role="alert">
+    <p class="font-bold">Arbitrage Opportunity:</p>
+    <p class="text-xl">{{ arbitragePercentage.toFixed(2) }}%</p>
+</div>
+
+<!-- Volume Distribution by Top 3 Exchanges -->
+<h2 class="text-xl font-bold mb-4">Volume Distribution</h2>
+<div class="relative pt-1 px-4">
+    <div class="flex h-2 mb-4 overflow-hidden text-xs bg-gray-200 rounded relative">
+        <div :class="['bg-blue-500', 'bg-green-500', 'bg-red-500', 'bg-gray-400'][index]" :key="exchange.name" :style="{width: exchange.volumePercentage + '%'}" v-for="(exchange, index) in topExchanges"></div>
+</div>
+<!-- Display data for each exchange -->
+<div class="flex justify-between border-t border-b py-2">
+<div :key="exchange.name" class="flex flex-col items-center w-1/4 px-2" v-for="(exchange, index) in topExchanges">
+<div :class="['text-center', ['text-blue-500', 'text-green-500', 'text-red-500', 'text-gray-500'][index]]">
+<div class="text-sm font-bold mb-1">{{ exchange.name }} ({{ exchange.volumePercentage }}%)</div>
+<div class="text-black text-xs mb-1">Vol: ${{ exchange.volumeUSD }}</div>
+<div class="text-black text-xs mb-1">Price: ${{ exchange.priceUSD }}</div>
+<div class="text-black text-xs" v-if="exchange.bidAskSpreadPercentage">Spread: {{ exchange.bidAskSpreadPercentage }}%</div>
+<div class="text-black text-xs">Liquidity: {{ exchange.liquidity }}</div>
+<div class="text-black text-xs mb-1" v-if="exchange.hasTradingIncentive">Trading Incentive: Yes</div>
+<div class="text-black text-xs mb-1" v-else>Trading Incentive: No</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- TradingView Widget -->
+<div class="bg-white rounded-xl shadow-md p-4">
+<div class="tradingview-widget-container">
+<div id="tradingview_06e64"></div>
+<div class="tradingview-widget-copyright"><a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Track all markets on TradingView</span></a></div>
+</div>
+</div>
+</div>
 <script>
-    // Initialize the Hub API for the testnet (for mainnet use 'https://hub.nimiq.com')
-    const hubApi = new HubApi('https://hub.nimiq-testnet.com');
+    const app = Vue.createApp({
+        data() {
+            return {
+                data: {},
+                topExchanges: [],
+                loading: true,
+                highestPrice: 0,
+                highestPriceExchange: '',
+                lowestPrice: 0,
+                lowestPriceExchange: '',
+                arbitragePercentage: 0
+            };
+        },
+        computed: {
+            averagePrice() {
+                const totalPercentageTop3 = this.topExchanges.reduce((sum, exchange) => sum + (exchange.volumePercentage ? parseFloat(exchange.volumePercentage) : 0), 0);
+                const weightedSum = this.topExchanges.reduce((sum, exchange) => sum + (exchange.volumePercentage * (exchange.priceUSD ? parseFloat(exchange.priceUSD) : 0)), 0);
+                return (totalPercentageTop3 !== 0) ? weightedSum / totalPercentageTop3 : 0;
+            },
+            remainingVolumePercentage() {
+                return 100 - this.topExchanges.reduce((sum, exchange) => sum + parseFloat(exchange.volumePercentage), 0);
+            }
+        },
+        mounted() {
+            this.fetchData();
+            setInterval(this.fetchData, 60000); // Fetch data every minute
+        },
+        methods: {
+            fetchData() {
+                fetch('https://api.coingecko.com/api/v3/coins/nimiq-2')
+                    .then(response => response.json())
+                    .then(data => {
+                        const totalVolumeUSD = data.tickers.reduce((acc, ticker) => acc + (ticker.converted_volume?.usd || 0), 0);
 
-    // Choose an address
-    document.getElementById('choose-address').addEventListener('click', async function(event) {
-        const output = document.getElementById('output');
+                        // Set the liquidityScore and totalVolume values
+                        this.data = {
+                            liquidityScore: data.liquidity_score || 'N/A',
+                            totalVolume: totalVolumeUSD.toFixed(2)
+                        };
 
-        try {
-            const result = await hubApi.chooseAddress({ appName: 'Nimiq App' });
-            output.textContent = result.address;
-        } catch (error) {
-            output.textContent = error.message;
+                        const top3Tickers = data.tickers.sort((a, b) => (b.converted_volume?.usd || 0) - (a.converted_volume?.usd || 0)).slice(0, 3);
+                        this.topExchanges = top3Tickers.map(ticker => ({
+                            name: ticker.market.name,
+                            volumePercentage: parseFloat((((ticker.converted_volume?.usd || 0) / totalVolumeUSD) * 100).toFixed(2)),
+                            volumeUSD: ticker.converted_volume?.usd.toFixed(2) || 'N/A',
+                            priceUSD: parseFloat(ticker.converted_last?.usd.toFixed(6)) || 'N/A',
+                            liquidity: ticker.trust_score || 'N/A',
+                            bidAskSpreadPercentage: (ticker.bid_ask_spread_percentage || 0).toFixed(2),
+                            hasTradingIncentive: ticker.market.has_trading_incentive
+                            
+                        }));
+
+                        const pricesFromAllExchanges = data.tickers.map(ticker => ({
+                            exchange: ticker.market.name,
+                            price: parseFloat(ticker.converted_last?.usd.toFixed(6)) || 0
+                        }));
+                        const maxPriceObj = pricesFromAllExchanges.reduce((a, b) => a.price > b.price ? a : b, pricesFromAllExchanges[0]);
+                        const minPriceObj = pricesFromAllExchanges.reduce((a, b) => a.price < b.price ? a : b, pricesFromAllExchanges[0]);
+
+                        this.highestPrice = maxPriceObj.price;
+                        this.highestPriceExchange = maxPriceObj.exchange;
+                        this.lowestPrice = minPriceObj.price;
+                        this.lowestPriceExchange = minPriceObj.exchange;
+                        this.arbitragePercentage = ((this.highestPrice - this.lowestPrice) / this.lowestPrice) * 100;
+                        this.loading = false;
+                    });
+            }
         }
     });
-
-    // Create a new account
-    document.getElementById('create-account').addEventListener('click', async function() {
-        const output = document.getElementById('output');
-
-        try {
-            const result = await hubApi.create();
-            output.textContent = `New Account: ${result.address}`;
-        } catch (error) {
-            output.textContent = error.message;
-        }
-    });
-
-    // Send NIM
-    document.getElementById('send-nim').addEventListener('click', async function() {
-        const recipientAddress = prompt('Enter recipient address:');
-        const amount = parseFloat(prompt('Enter amount to send:'));
-
-        if (!recipientAddress || isNaN(amount)) {
-            alert('Invalid input');
-            return;
-        }
-
-        try {
-            const result = await hubApi.checkout({
-                appName: 'Nimiq App',
-                recipient: recipientAddress,
-                value: amount * 1e5,  // Convert NIM to Luna
-            });
-            output.textContent = 'Transaction successful!';
-        } catch (error) {
-            output.textContent = error.message;
-        }
-    });
-
-    // Receive NIM
-    document.getElementById('receive-nim').addEventListener('click', async function() {
-        const output = document.getElementById('output');
-
-        try {
-            const result = await hubApi.receive({
-                appName: 'Nimiq App',
-            });
-            output.textContent = `Receive address: ${result.address}`;
-        } catch (error) {
-            output.textContent = error.message;
-        }
-    });
-
+    app.mount('#app');
 </script>
 
+<script async="True" src="https://s3.tradingview.com/tv.js" type="text/javascript"></script>
+<script type="text/javascript">
+    new TradingView.widget({
+        "width": "100%",
+        "height": 400,
+        "symbol": "CRYPTO:NIMUSD",
+        "interval": "240",
+        "timezone": "Etc/UTC",
+        "theme": "dark",
+        "style": "8",
+        "locale": "en",
+        "enable_publishing": false,
+        "hide_top_toolbar": true,
+        "save_image": false,
+        "studies": [
+            "STD;MA%Ribbon"
+        ],
+        "hide_volume": true,
+        "container_id": "tradingview_06e64"
+    });
+</script>
 </body>
 </html>
