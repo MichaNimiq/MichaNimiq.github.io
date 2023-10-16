@@ -62,7 +62,7 @@
 <div :class="['text-center', ['text-blue-500', 'text-green-500', 'text-red-500', 'text-gray-500'][index]]">
 <div class="text-sm font-bold mb-1">{{ exchange.name }} ({{ exchange.volumePercentage }}%)</div>
 <div class="text-black text-xs mb-1">Vol: ${{ exchange.volumeUSD }}</div>
-<div class="text-black text-xs mb-1">Price: ${{ exchange.priceUSD }}</div>
+<div class="text-black text-xs mb-1">Price: ${{ exchange.priceUSD }} ({{ exchange.tradingPair }})</div>
 <div class="text-black text-xs mb-1" v-if="exchange.bidAskSpreadPercentage">Spread: {{ exchange.bidAskSpreadPercentage }}%</div>
 <div class="text-black text-xs mb-1">Liquidity: {{ exchange.liquidity }}</div>
 <div class="text-black text-xs mb-1" v-if="exchange.hasTradingIncentive">Incentive: Yes</div>
@@ -157,6 +157,7 @@ const app = Vue.createApp({
                         volumePercentage: parseFloat(((exchangeData.volume / totalVolumeUSD) * 100).toFixed(2)),
                         volumeUSD: exchangeData.volume.toFixed(2),
                         priceUSD: parseFloat(topTickerForExchange.converted_last?.usd.toFixed(6)) || 'N/A',
+                        tradingPair: topTickerForExchange.target + '/' + topTickerForExchange.base,  // Extracting trading pair for top exchanges
                         liquidity: topTickerForExchange.trust_score || 'N/A',
                         bidAskSpreadPercentage: (topTickerForExchange.bid_ask_spread_percentage || 0).toFixed(2),
                         hasTradingIncentive: topTickerForExchange.market.has_trading_incentive
